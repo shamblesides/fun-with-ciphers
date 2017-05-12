@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+  <title>Encrypt Something</title>
+
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+
+  <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+  <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+  <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+  <div class="jumbotron">
+    <div class="container">
+      <h1>Encrypt Something.</h1>
+    </div>
+  </div>
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-3 col-lg-2">
+        <ul class="nav nav-pills nav-stacked" id="category-list">
+        </ul>
+      </div>
+      <div class="col-sm-9 col-lg-10">
+        <h2 id="group-header"></h2>
+        <ul id="cipher-list" class="nav nav-pills"></ul>
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h3 class="panel-title" id="cipher-name"></h3>
+          </div>
+          <div class="panel-body">
+            <div id="error" class="alert alert-danger collapse">
+              <button type="button" class="close" aria-label="Close" onclick="$('#error').hide();">
+                <span aria-hidden="true">&times;</span>
+              </button>
+              <span id="error-text"></span>
+            </div>
+            <div class="form-group">
+              <label for="message">Message:</label>
+              <textarea class="form-control" id="message"></textarea>
+            </div>
+            
+            <div id="keys" class="form-group">
+            </div>
+            
+            <div class="button-toolbar">
+              <button type="button" id="encode-button" class="btn btn-default btn-lg" onclick="encode()">
+                <span class="glyphicon glyphicon-lock"></span> Encode
+              </button>
+              <button type="button" id="flip-button" class="btn btn-default btn-lg" onclick="encode()">
+                <span class="glyphicon glyphicon-random"></span> Flip
+              </button>
+              <button type="button" id="decode-button" class="btn btn-default btn-lg" onclick="decode()">
+                <span class="glyphicon glyphicon-eye-open"></span> Decode
+              </button>
+            </div>
+            
+          </div>
+        </div>
+        <span id="group-desc"></span>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    
+  </div>
+
+  <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+  <!-- Include all compiled plugins (below), or include individual files as needed -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  <!-- Ciphers -->
+  <script src="vendor/esrever/esrever.js"></script>
+  <script src="cipher.js"></script>
+  <!-- Page javascript -->
+  <script>
+    var currentGroup = null;
+    var currentCipher = null;
+    function useGroup(group) {
+      currentGroup = group;
+      currentCipher = null;
+      $('#category-list li').attr({'class': ''});
+      $('#category-list li').eq(ciphers.indexOf(group)).attr({'class': 'active'});
+      $('#group-header').text(group.group);
+      $('#group-desc').html(group.desc);
+      $('#cipher-list').empty();
+      group.list.forEach(function(cipher) {
+        var c = cipher;
+        $('#cipher-list').append(
+          $('<li/>', { role: 'presentation' }).append(
+            $('<a/>', { href: '#', text: cipher.name, click: function(evt) { useCipher(cipher); evt.preventDefault(); } })
+          )
+          /* $('<button/>', {'type': 'button', 'class': 'btn btn-default', text: cipher.name, click: function() { useCipher(c); } }) */
+        );
+      });
+      if(!group.selectedCipher) group.selectedCipher = group.list[0];
+      useCipher(group.selectedCipher);
+    }
+    function useCipher(cipher) {
+      currentCipher = cipher;
+      currentGroup.selectedCipher = cipher;
+      // set cipher text display
+      $('#cipher-name').text(cipher.name);
+      $('#cipher-list li').attr({'class': ''});
+      $('#cipher-list li').eq(currentGroup.list.indexOf(cipher)).attr({'class': 'active'});
+      // display extra key inputs
+      $('#keys').empty();
+      if(cipher.keys) cipher.keys.forEach(function(x) {
+        $('#keys').append(
+          $('<div/>', { 'class': 'input-group' }).append(
+            $('<span/>', { 'class': 'input-group-addon', text: x.label })
+          ).append(' ').append(
+            $('<input/>', { 'type': 'text', 'class': 'form-control' })
+          )
+        );
+      });
+      // show correct buttons
+      if(cipher.decode) {
+        $('#encode-button').show();
+        $('#decode-button').show();
+        $('#flip-button').hide();
+      }
+      else {
+        $('#encode-button').hide();
+        $('#decode-button').hide();
+        $('#flip-button').show();
+      }
+      // hide error message if there was one
+      $('#error').hide();
+    }
+    function encode() {
+      processMessage(currentCipher.encode);
+    }
+    function decode() {
+      processMessage(currentCipher.decode);
+    }
+    function processMessage(func) {
+      var args = [ $('#message').val() ];
+      if(!args[0]) {
+        $('#error').fadeIn();
+        $('#error').attr({ 'class': 'alert alert-info' });
+        $('#error-text').text('Please enter a message.');
+        $('#message').focus();
+        return;
+      }
+      if(currentCipher.keys) {
+        $('#keys input').each(function(i, x) {
+          args.push(x.value);
+        });
+      }
+      try {
+        $('#message').val(func.apply(null, args));
+        $('#error').hide();
+      } catch(ex) {
+        $('#error').fadeIn();
+        $('#error').attr({ 'class': 'alert alert-danger' });
+        $('#error-text').text(ex.message);
+      }
+    }
+    $(document).ready(function() {
+      ciphers.forEach(function(group) {
+        $('#category-list').append(
+          $('<li/>').append(
+            $('<a/>', { href: '#', text: group.group, click: function(evt) { useGroup(group); evt.preventDefault(); } })
+          )
+        );
+      });
+      useGroup(ciphers[0]);
+    });
+  </script>
+</body>
+</html>
